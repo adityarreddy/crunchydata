@@ -1,0 +1,55 @@
+FROM centos:7
+
+LABEL name="crunchydata/prometheus" \
+        vendor="crunchy data" \
+	Version="7.7" \
+	Release="4.1.2" \
+        url="https://crunchydata.com" \
+        summary="Prometheus server that stores metrics for crunchy-postgres" \
+        io.k8s.description="prometheus container" \
+        io.k8s.display-name="Crunchy prometheus container" \
+        io.openshift.expose-services="" \
+        io.openshift.tags="crunchy,database"
+
+COPY licenses /licenses
+
+RUN yum -y update \
+ && yum -y install epel-release \
+ && yum -y install bind-utils \
+    procps-ng \
+    wget  \
+    hostname  \
+    gettext \
+  && yum clean all -y
+
+RUN mkdir -p /data /conf /opt/cpm/bin /opt/cpm/conf
+
+# ADD prometheus.tar.gz /opt/cpm/bin
+
+
+ARG PROMETHEUS_VERSION=2.9.2
+ARG GRAFANA_VERSION=6.3.4
+ARG POSTGRES_EXPORTER_VERSION=0.4.7
+ARG PGMONITOR_COMMIT='v3.2'
+ARG CERTSTRAP_VERSION=1.1.1
+
+RUN  wget -O /opt/cpm/bin/prometheus.tar.gz https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz
+
+ADD bin/prometheus /opt/cpm/bin
+ADD bin/common /opt/cpm/bin
+ADD conf/prometheus /opt/cpm/conf
+
+RUN chown -R 2:0 /opt/cpm /data /conf && \
+    chmod -R g=u /opt/cpm /data /conf
+
+EXPOSE 9090
+
+RUN chmod g=u /etc/passwd
+
+VOLUME ["/data", "/conf"]
+
+ENTRYPOINT ["opt/cpm/bin/uid_daemon.sh"]
+
+USER 2
+
+CMD ["/opt/cpm/bin/start.sh"]
